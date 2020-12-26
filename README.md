@@ -171,7 +171,11 @@ Agent works as a TLS forward proxy at local, listens multiple address according 
 {
     "sni":"xxxxx-https.example.com",
     "auth":"user:password",
-    "mode":"https"
+    "mode":"https",
+    "reverseProxy": {
+        "/23336666":"127.0.0.1:23336",
+        "/66662333":"127.0.0.1:62333"
+    }
 }
 ```
 
