@@ -15,6 +15,7 @@ const configTemplate = `{
 	"Mode": "{{.Mode}}",
 	"Addr": "{{.Addr}}",
 	"Conf": "{{.Conf}}",
+	"HTTPRedirect": {{.HTTPRedirect}},
 	"TLS": {
 		"ForwardSecurity": "{{.TLS.ForwardSecurity}}",
 		"Certs": {{.TLS.Certs}}

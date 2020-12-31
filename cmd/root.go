@@ -74,6 +74,7 @@ func initFlags() {
 	viper.BindPFlag("logLevel", rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.SetDefault("mode", "server")
 	viper.SetDefault("addr", "0.0.0.0:443")
+	viper.SetDefault("httpRedirect", false)
 	viper.SetDefault("conf", "/etc/akari/conf")
 	// TLS Config
 	viper.SetDefault("tls.fs", false)

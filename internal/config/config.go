@@ -3,12 +3,13 @@ package config
 var C Config
 
 type Config struct {
-	Version  string
-	LogLevel int       `mapstructure:"logLevel"`
-	Mode     string    `mapstructure:"mode"`
-	Addr     string    `mapstructure:"addr"`
-	Conf     string    `mapstructure:"conf"`
-	TLS      TLSConfig `mapstructure:"tls"`
+	Version      string
+	LogLevel     int       `mapstructure:"logLevel"`
+	Mode         string    `mapstructure:"mode"`
+	Addr         string    `mapstructure:"addr"`
+	Conf         string    `mapstructure:"conf"`
+	HTTPRedirect bool      `mapstructure:"httpRedirect"`
+	TLS          TLSConfig `mapstructure:"tls"`
 }
 
 type TLSConfig struct {
