@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"github.com/mikumaycry/akari/internal/utils"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/xtaci/smux"
 )
 
 // Server wraps hold tls.Listner and distribute request to pkg based on sni
@@ -95,10 +97,15 @@ func (s *Server) Serve() error {
 			log.Fatalf("server: Accept error: %s", err)
 		}
 		tempDelay = 0
+		tlsConn, ok := conn.(*tls.Conn)
+		if !ok {
+			conn.Close()
+			continue
+		}
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
-			s.handleConn(conn)
+			s.handleConn(tlsConn)
 		}()
 	}
 }
@@ -110,14 +117,10 @@ func (s *Server) Close() error {
 	return s.ln.Close()
 }
 
-func (s *Server) handleConn(conn net.Conn) {
-	tlsConn, ok := conn.(*tls.Conn)
-	if !ok {
-		conn.Close()
-		return
-	}
+func (s *Server) handleConn(tlsConn *tls.Conn) {
+	logger := log.WithField("Remote", tlsConn.RemoteAddr())
 	if err := tlsConn.Handshake(); err != nil {
-		log.WithField("Remote", conn.RemoteAddr()).Error("tlsCon.Handshake: ", err)
+		logger.Error("tlsConn.Handshake: ", err)
 		tlsConn.Close()
 		return
 	}
@@ -125,19 +128,84 @@ func (s *Server) handleConn(conn net.Conn) {
 	if len(sni) == 0 {
 		sni = "empty"
 	}
-	dst, ok := s.confs[sni]
+	cfg, ok := s.confs[sni]
 	if !ok {
-		log.WithField("Remote", tlsConn.RemoteAddr()).Errorf("invalid SNI: %s", sni)
+		logger.Errorf("invalid SNI: %s", sni)
 		tlsConn.Close()
 		return
 	}
-	funcMap[dst.Mode](tlsConn, &dst)
+	logger = logger.WithFields(log.Fields{
+		"Mode": cfg.ConnMode(),
+		"SNI":  sni,
+		"TLS":  utils.TLSFormatString(tlsConn),
+	})
+	logger.Info("Open Conn")
+	defer logger.Info("Close Conn")
+	if cfg.Mux {
+		handleMuxConn(tlsConn, &cfg, logger)
+	} else {
+		handleSingleConn(tlsConn, &cfg, logger)
+	}
 }
 
-var funcMap = map[string]func(conn *tls.Conn, cfg *config.ServerConf){
-	"tcp":    tcp.HandleConn,
-	"socks5": socks5.HandleConn,
-	"https":  https.HandleConn,
+func handleMuxConn(srcConn net.Conn, cfg *config.ServerConf, logger *log.Entry) {
+	defer srcConn.Close()
+	muxCfg := smux.DefaultConfig()
+	session, err := smux.Server(srcConn, muxCfg)
+	if err != nil {
+		logger.Errorf("smux.Server: %s", err)
+		return
+	}
+	defer session.Close()
+	for {
+		stream, err := session.AcceptStream()
+		if err != nil {
+			logger.Errorf("session.AcceptStream: %s", err)
+			return
+		}
+		go handleSingleConn(stream, cfg, logger)
+	}
+}
+
+type bufferdConn struct {
+	net.Conn
+	br *bufio.Reader
+}
+
+func (c *bufferdConn) Read(b []byte) (int, error) {
+	return c.br.Read(b)
+}
+
+func handleSingleConn(srcConn net.Conn, cfg *config.ServerConf, logger *log.Entry) {
+	switch cfg.Mode {
+	case "tcp":
+		logger = logger.WithField("DST", cfg.Addr)
+		tcp.HandleConn(srcConn, cfg, logger)
+	case "socks5":
+		socks5.HandleConn(srcConn, cfg, logger)
+	case "https":
+		https.HandleConn(srcConn, cfg, logger)
+	case "auto":
+		br := bufio.NewReader(srcConn)
+		b, err := br.Peek(1)
+		if err != nil {
+			logger.Errorf("br.Peek: %s", err)
+			srcConn.Close()
+			return
+		}
+		bfConn := &bufferdConn{Conn: srcConn, br: br}
+		switch b[0] {
+		case 0x05:
+			// socks5
+			socks5.HandleConn(bfConn, cfg, logger)
+		default:
+			// http
+			https.HandleConn(bfConn, cfg, logger)
+		}
+	default:
+		logger.Errorf("invalid mode: %s", cfg.Mode)
+		srcConn.Close()
+	}
 }
 
 func (s *Server) handleHTTPRedirect() {

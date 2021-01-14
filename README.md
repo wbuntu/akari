@@ -51,6 +51,7 @@ Server listens on one public address and route traffic according to SNI proxy co
 |Mode|string|**server** or **agent**, use **server** on server|
 |Addr|string|listening address of server|
 |Conf|string|SNI based proxy config folder path, all json files under this folder are loaded on start|
+|HTTPRedirect|bool|enable http redirect for https mode sni|
 |TLS|object|TLS config, contains ForwardSecurity switchy and a group of TLS certs|
 
 **SNI based proxy config**
@@ -62,6 +63,7 @@ Server listens on one public address and route traffic according to SNI proxy co
 |auth|string|**user:password** format auth string, supported by socks5 and https mode|
 |mux|bool|multiplexing conn switch|
 |addr|string|dst addr, supported by tcp mode|
+|ReverseProxy|map[string]string|http path and dst addr, supported by https mode|
 
 mode in this config:
 

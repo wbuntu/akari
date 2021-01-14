@@ -2,7 +2,6 @@ package socks5
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/binary"
 	"io"
 	"net"
@@ -10,52 +9,12 @@ import (
 
 	"github.com/mikumaycry/akari/internal/config"
 	"github.com/mikumaycry/akari/internal/pkg/transport"
-	"github.com/mikumaycry/akari/internal/utils"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"github.com/xtaci/smux"
 )
 
-// HandleConn handle socks5 and mux-socks5
-func HandleConn(srcConn *tls.Conn, cfg *config.ServerConf) {
-	logEntry := log.WithFields(log.Fields{
-		"Mode":   cfg.ConnMode(),
-		"SNI":    cfg.SNI,
-		"TLS":    utils.TLSFormatString(srcConn),
-		"Remote": srcConn.RemoteAddr().String(),
-	})
-	defer logEntry.Info("Close Conn")
-	logEntry.Info("Open Conn")
-	if cfg.Mux {
-		handleMuxConn(srcConn, cfg, logEntry)
-	} else {
-		handleSingleConn(srcConn, cfg, logEntry)
-	}
-}
-
-func handleMuxConn(srcConn net.Conn, cfg *config.ServerConf, logEntry *log.Entry) {
-	defer srcConn.Close()
-	muxCfg := smux.DefaultConfig()
-	if cfg.MuxV2 {
-		muxCfg.Version = 2
-	}
-	session, err := smux.Server(srcConn, muxCfg)
-	if err != nil {
-		logEntry.Errorf("smux.Server: %s", err)
-		return
-	}
-	defer session.Close()
-	for {
-		stream, err := session.AcceptStream()
-		if err != nil {
-			logEntry.Errorf("session.AcceptStream: %s", err)
-			return
-		}
-		go handleSingleConn(stream, cfg, logEntry)
-	}
-}
-
-func handleSingleConn(srcConn net.Conn, cfg *config.ServerConf, origLogEntry *log.Entry) {
+// HandleConn handle socks5
+func HandleConn(srcConn net.Conn, cfg *config.ServerConf, origLogEntry *log.Entry) {
 	defer srcConn.Close()
 	if err := handshake(srcConn, cfg); err != nil {
 		origLogEntry.Errorf("handshake: %s", err)
