@@ -47,7 +47,6 @@ type AgentConf struct {
 	Pool    bool   `json:"pool"`
 	MaxIdle int    `json:"maxIdle"`
 	MaxMux  int    `json:"maxMux"`
-	MuxV2   bool   `json:"muxV2"`
 }
 
 func (a *AgentConf) ConnMode() string {

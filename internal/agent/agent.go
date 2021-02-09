@@ -2,6 +2,7 @@ package agent
 
 import (
 	"crypto/tls"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -35,21 +36,30 @@ func New(cfg *config.Config) (*Agent, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "net.Listen: %v", v)
 		}
-		listener := &Listener{
-			ln:  ln,
-			cfg: v,
+		dialFn := func() (io.ReadWriteCloser, error) {
+			return tls.Dial("tcp", v.Remote, &tls.Config{
+				ServerName: v.SNI,
+				MinVersion: tls.VersionTLS12,
+			})
 		}
-		if v.Pool {
-			maxIdle, maxMux := defaultIdle, defaultMux
-			if v.MaxIdle != 0 {
-				maxIdle = v.MaxIdle
+		listener := &Listener{
+			ln:     ln,
+			cfg:    v,
+			dialFn: dialFn,
+		}
+		if v.Mux {
+			if v.Pool {
+				maxIdle, maxMux := defaultIdle, defaultMux
+				if v.MaxIdle != 0 {
+					maxIdle = v.MaxIdle
+				}
+				if v.MaxMux != 0 {
+					maxMux = v.MaxMux
+				}
+				listener.pool = mux.NewPool(maxIdle, maxMux, dialFn)
+			} else {
+				listener.conn = mux.NewConn(dialFn)
 			}
-			if v.MaxMux != 0 {
-				maxMux = v.MaxMux
-			}
-			listener.pool = mux.NewPool(maxIdle, maxMux, v.Remote, v.SNI, v.MuxV2)
-		} else {
-			listener.conn = mux.NewConn(v.Remote, v.SNI, v.MuxV2)
 		}
 		s.lns = append(s.lns, listener)
 	}
@@ -76,11 +86,12 @@ func (a *Agent) Close() error {
 
 // Listener provide tcp, mux-tcp and mux-pool conn
 type Listener struct {
-	ln   net.Listener
-	cfg  config.AgentConf
-	pool *mux.Pool
-	conn *mux.Conn
-	wg   sync.WaitGroup
+	ln     net.Listener
+	cfg    config.AgentConf
+	pool   *mux.Pool
+	conn   *mux.Conn
+	wg     sync.WaitGroup
+	dialFn func() (io.ReadWriteCloser, error)
 }
 
 func (l *Listener) serve() error {
@@ -141,12 +152,9 @@ func (l *Listener) handleConn(srcConn net.Conn) {
 }
 
 func (l *Listener) handleSingleTCPConn(srcConn net.Conn, logEntry *log.Entry) {
-	dstConn, err := tls.Dial("tcp", l.cfg.Remote, &tls.Config{
-		ServerName: l.cfg.SNI,
-		MinVersion: tls.VersionTLS12,
-	})
+	dstConn, err := l.dialFn()
 	if err != nil {
-		logEntry.Errorf("tls.Dial: %s", err)
+		logEntry.Errorf("dialFn: %s", err)
 		return
 	}
 	defer dstConn.Close()

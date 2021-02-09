@@ -1,7 +1,7 @@
 package mux
 
 import (
-	"crypto/tls"
+	"io"
 	"math/rand"
 	"sync"
 	"time"
@@ -14,33 +14,23 @@ import (
 type Conn struct {
 	mu      sync.Mutex
 	session *smux.Session
-	remote  string
-	sni     string
-	v2      bool
+	dialFn  func() (io.ReadWriteCloser, error)
 }
 
 // NewConn method
-func NewConn(remote, sni string, v2 bool) *Conn {
+func NewConn(dialFn func() (io.ReadWriteCloser, error)) *Conn {
 	c := &Conn{
-		remote: remote,
-		sni:    sni,
-		v2:     v2,
+		dialFn: dialFn,
 	}
 	return c
 }
 
 func (conn *Conn) openSession() error {
-	dstConn, err := tls.Dial("tcp", conn.remote, &tls.Config{
-		ServerName: conn.sni,
-		MinVersion: tls.VersionTLS12,
-	})
+	dstConn, err := conn.dialFn()
 	if err != nil {
-		return errors.Wrap(err, "tls.Dial")
+		return errors.Wrap(err, "conn.dialFn")
 	}
 	muxCfg := smux.DefaultConfig()
-	if conn.v2 {
-		muxCfg.Version = 2
-	}
 	session, err := smux.Client(dstConn, muxCfg)
 	if err != nil {
 		return errors.Wrap(err, "smux.Client")
@@ -86,7 +76,7 @@ type Pool struct {
 }
 
 // NewPool method
-func NewPool(maxIdle, maxMux int, remote, sni string, v2 bool) *Pool {
+func NewPool(maxIdle, maxMux int, dialFn func() (io.ReadWriteCloser, error)) *Pool {
 	p := &Pool{
 		MaxIdle:  maxIdle,
 		MaxMux:   maxMux,
@@ -94,9 +84,7 @@ func NewPool(maxIdle, maxMux int, remote, sni string, v2 bool) *Pool {
 	}
 	for i := 0; i < maxIdle; i++ {
 		p.sessions[i] = &Conn{
-			remote: remote,
-			sni:    sni,
-			v2:     v2,
+			dialFn: dialFn,
 		}
 	}
 	rand.Seed(time.Now().UnixNano())

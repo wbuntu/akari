@@ -43,7 +43,7 @@ func HandleConn(srcConn net.Conn, cfg *config.ServerConf, origLogEntry *log.Entr
 func handleMethod(srcConn net.Conn) error {
 	var req methodReq
 	if err := req.read(srcConn); err != nil {
-		return errors.Wrap(err, "req.Read")
+		return errors.Wrap(err, "req.read")
 	}
 	return nil
 }
