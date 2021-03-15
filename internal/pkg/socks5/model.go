@@ -201,7 +201,7 @@ func (r *cmdReq) read(srcConn net.Conn) error {
 	case socks5AddrTypeDomain:
 		r.dst = string(r.dstAddr)
 	case socks5AddrTypeIPv6:
-		r.dst = net.IP(r.dstAddr).String()
+		r.dst = "[" + net.IP(r.dstAddr).String() + "]"
 	}
 	r.dst += ":" + strconv.Itoa(int(r.dstPort))
 	return nil

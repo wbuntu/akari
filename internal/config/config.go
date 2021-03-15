@@ -23,12 +23,13 @@ type TLSCertPair struct {
 }
 
 type ServerConf struct {
-	SNI          string            `json:"sni"`
-	Mode         string            `json:"mode"`
-	Addr         string            `json:"addr"`
-	Auth         string            `json:"auth"`
-	Mux          bool              `json:"mux"`
-	ReverseProxy map[string]string `json:"reverseProxy"`
+	SNI                 string            `json:"sni"`
+	Mode                string            `json:"mode"`
+	Addr                string            `json:"addr"`
+	Auth                string            `json:"auth"`
+	Mux                 bool              `json:"mux"`
+	DisableForwardProxy bool              `json:"disableForwardProxy"`
+	ReverseProxy        map[string]string `json:"reverseProxy"`
 }
 
 func (s *ServerConf) ConnMode() string {

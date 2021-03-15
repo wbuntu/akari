@@ -70,35 +70,37 @@ func HandleConn(srcConn net.Conn, cfg *config.ServerConf, origLogEntry *log.Entr
 			return
 		}
 		transport.Transport(srcConn, dstConn)
-	} else {
-		if ok := authenticate(srcConn, cfg, req, resp); !ok {
-			origLogEntry.Error("invalid auth")
-			return
-		}
-		defer logEntry.Info("Close DST")
-		logEntry.Info("Open DST")
-		req.Header.Del("Proxy-Authorization")
-		dstConn, err := net.Dial("tcp", dstAddr)
-		if err != nil {
-			logEntry.Errorf("net.Dial: %s", err)
-			resp.StatusCode = http.StatusServiceUnavailable
-			resp.Write(srcConn)
-			return
-		}
-		defer dstConn.Close()
-		if req.Method == http.MethodConnect {
-			b := []byte("HTTP/1.1 200 Connection established\r\n" +
-				"Proxy-Agent: Akari" + "\r\n\r\n")
-			srcConn.Write(b)
-		} else {
-			req.Header.Del("Proxy-Connection")
-			if err = req.Write(dstConn); err != nil {
-				logEntry.Errorf("req.Write: %s", err)
-				return
-			}
-		}
-		transport.Transport(srcConn, dstConn)
 	}
+	if cfg.DisableForwardProxy {
+		return
+	}
+	if ok := authenticate(srcConn, cfg, req, resp); !ok {
+		origLogEntry.Error("invalid auth")
+		return
+	}
+	defer logEntry.Info("Close DST")
+	logEntry.Info("Open DST")
+	req.Header.Del("Proxy-Authorization")
+	dstConn, err := net.Dial("tcp", dstAddr)
+	if err != nil {
+		logEntry.Errorf("net.Dial: %s", err)
+		resp.StatusCode = http.StatusServiceUnavailable
+		resp.Write(srcConn)
+		return
+	}
+	defer dstConn.Close()
+	if req.Method == http.MethodConnect {
+		b := []byte("HTTP/1.1 200 Connection established\r\n" +
+			"Proxy-Agent: Akari" + "\r\n\r\n")
+		srcConn.Write(b)
+	} else {
+		req.Header.Del("Proxy-Connection")
+		if err = req.Write(dstConn); err != nil {
+			logEntry.Errorf("req.Write: %s", err)
+			return
+		}
+	}
+	transport.Transport(srcConn, dstConn)
 }
 
 func authenticate(conn net.Conn, cfg *config.ServerConf, req *http.Request, resp *http.Response) bool {
