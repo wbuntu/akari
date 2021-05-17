@@ -7,7 +7,6 @@ import (
 	"github.com/mikumaycry/akari/internal/config"
 	"github.com/mikumaycry/akari/internal/pkg/transport"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -64,7 +63,7 @@ func handleCmd(srcConn net.Conn) (cmd byte, dst string, err error) {
 	return req.cmd, req.dst, nil
 }
 
-func handleConnect(dstAddr string, logEntry *logrus.Entry, srcConn net.Conn) {
+func handleConnect(dstAddr string, logEntry *log.Entry, srcConn net.Conn) {
 	dstConn, err := handleConnectDial(dstAddr, srcConn)
 	if err != nil {
 		logEntry.Errorf("handleConnectDial: %s", err)
@@ -74,11 +73,11 @@ func handleConnect(dstAddr string, logEntry *logrus.Entry, srcConn net.Conn) {
 	transport.Transport(srcConn, dstConn)
 }
 
-func handleBind(dstAddr string, logEntry *logrus.Entry, srcConn net.Conn) {
+func handleBind(dstAddr string, logEntry *log.Entry, srcConn net.Conn) {
 
 }
 
-func handleUDP(dstAddr string, logEntry *logrus.Entry, srcConn net.Conn) {
+func handleUDP(dstAddr string, logEntry *log.Entry, srcConn net.Conn) {
 
 }
 
