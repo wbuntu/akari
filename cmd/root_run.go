@@ -38,7 +38,7 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 	// wait for signal
-	sigChan := make(chan os.Signal)
+	sigChan := make(chan os.Signal, 1)
 	exitChan := make(chan struct{})
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	// signal received

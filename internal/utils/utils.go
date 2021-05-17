@@ -73,7 +73,7 @@ var (
 
 func CipherSuites() []uint16 {
 	var cipherSuites []uint16
-	if hasGCMAsmAMD64 {
+	if hasGCMAsm {
 		cipherSuites = append(aesCipher, chachaCipher...)
 	} else {
 		cipherSuites = append(chachaCipher, aesCipher...)
@@ -94,7 +94,6 @@ func init() {
 }
 
 var tlsVersions = map[uint16]string{
-	tls.VersionSSL30: "SSLv3.0",
 	tls.VersionTLS10: "TLSv1.0",
 	tls.VersionTLS11: "TLSv1.1",
 	tls.VersionTLS12: "TLSv1.2",
