@@ -9,6 +9,10 @@ build:
 	@echo "Compiling source for $(GOOS) $(GOARCH)"
 	@CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags "-s -w -X main.version=$(VERSION)-$(COMMIT)-$(TIMESTAMP)" -o akari main.go
 
+image: build
+	@echo "Building image for $(GOOS) $(GOARCH)"
+	@docker build -t wbuntu/akari:$(VERSION) .
+
 linux:
 	@echo "Compiling source for linux amd64"
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X main.version=$(VERSION)-$(COMMIT)-$(TIMESTAMP)" -o akari_linux_amd64 main.go
