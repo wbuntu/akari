@@ -109,9 +109,9 @@ func handleConnectDial(dstAddr string, srcConn net.Conn) (net.Conn, error) {
 	if ipv4 := ip.To4(); ipv4 != nil {
 		rep.atyp = socks5AddrTypeIPv4
 		rep.bndAddr = ipv4[:net.IPv4len]
-	} else {
+	} else if ipv6 := ip.To16(); ipv6 != nil {
 		rep.atyp = socks5AddrTypeIPv6
-		rep.bndAddr = ipv4[:net.IPv6len]
+		rep.bndAddr = ipv6[:net.IPv6len]
 	}
 	prt, err := strconv.Atoi(port)
 	if err != nil {
