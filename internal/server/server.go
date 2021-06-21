@@ -177,6 +177,7 @@ func (c *bufferdConn) Read(b []byte) (int, error) {
 }
 
 func handleSingleConn(srcConn net.Conn, cfg *config.ServerConf, logger *log.Entry) {
+	defer srcConn.Close()
 	switch cfg.Mode {
 	case "tcp":
 		logger = logger.WithField("DST", cfg.Addr)
@@ -190,7 +191,6 @@ func handleSingleConn(srcConn net.Conn, cfg *config.ServerConf, logger *log.Entr
 		b, err := br.Peek(1)
 		if err != nil {
 			logger.Errorf("br.Peek: %s", err)
-			srcConn.Close()
 			return
 		}
 		bfConn := &bufferdConn{Conn: srcConn, br: br}
@@ -204,7 +204,6 @@ func handleSingleConn(srcConn net.Conn, cfg *config.ServerConf, logger *log.Entr
 		}
 	default:
 		logger.Errorf("invalid mode: %s", cfg.Mode)
-		srcConn.Close()
 	}
 }
 

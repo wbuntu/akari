@@ -14,7 +14,6 @@ import (
 
 // HandleConn handle http connect
 func HandleConn(srcConn net.Conn, cfg *config.ServerConf, origLogEntry *log.Entry) {
-	defer srcConn.Close()
 	req, err := http.ReadRequest(bufio.NewReader(srcConn))
 	if err != nil {
 		origLogEntry.Errorf("http.ReadRequest: %s", err)

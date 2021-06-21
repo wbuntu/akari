@@ -10,7 +10,6 @@ import (
 
 // HandleConn handle TCP
 func HandleConn(srcConn net.Conn, cfg *config.ServerConf, logEntry *log.Entry) {
-	defer srcConn.Close()
 	dstConn, err := net.Dial("tcp", cfg.Addr)
 	if err != nil {
 		logEntry.Errorf("net.Dial: %s", err)

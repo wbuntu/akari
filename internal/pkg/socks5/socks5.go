@@ -12,7 +12,6 @@ import (
 
 // HandleConn handle socks5
 func HandleConn(srcConn net.Conn, cfg *config.ServerConf, origLogEntry *log.Entry) {
-	defer srcConn.Close()
 	if err := handleMethod(srcConn); err != nil {
 		origLogEntry.Errorf("handleMethod: %s", err)
 		return
