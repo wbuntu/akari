@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/mikumaycry/akari/internal/agent"
 	"github.com/mikumaycry/akari/internal/config"
@@ -22,6 +24,9 @@ type context struct {
 }
 
 func run(cmd *cobra.Command, args []string) error {
+	// initialize math/rand
+	rand.Seed(time.Now().UnixNano())
+	// run startup tasks
 	tasks := []func(*context) error{
 		setupLog,
 		printStartupLog,

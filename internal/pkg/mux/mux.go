@@ -4,7 +4,6 @@ import (
 	"io"
 	"math/rand"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/xtaci/smux"
@@ -39,7 +38,9 @@ func (conn *Conn) openSession() error {
 	return nil
 }
 
-func (conn *Conn) numStreams() int {
+func (conn *Conn) NumStreams() int {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
 	if conn.session != nil {
 		return conn.session.NumStreams()
 	}
@@ -52,13 +53,13 @@ func (conn *Conn) OpenStream() (*smux.Stream, error) {
 	defer conn.mu.Unlock()
 	if conn.session == nil {
 		if err := conn.openSession(); err != nil {
-			return nil, errors.Wrap(err, "conn.openSession")
+			return nil, errors.Wrap(err, "openSession")
 		}
 	}
 	stream, err := conn.session.OpenStream()
 	if err != nil {
 		if err := conn.openSession(); err != nil {
-			return nil, errors.Wrap(err, "conn.reopenSession")
+			return nil, errors.Wrap(err, "reopenSession")
 		}
 		stream, err = conn.session.OpenStream()
 	}
@@ -70,36 +71,35 @@ func (conn *Conn) OpenStream() (*smux.Stream, error) {
 
 // Pool implement mux conn pool
 type Pool struct {
-	MaxIdle  int
-	MaxMux   int
-	sessions []*Conn
+	MaxIdle int
+	MaxMux  int
+	conns   []*Conn
 }
 
 // NewPool method
 func NewPool(maxIdle, maxMux int, dialFn func() (io.ReadWriteCloser, error)) *Pool {
 	p := &Pool{
-		MaxIdle:  maxIdle,
-		MaxMux:   maxMux,
-		sessions: make([]*Conn, maxIdle),
+		MaxIdle: maxIdle,
+		MaxMux:  maxMux,
+		conns:   make([]*Conn, maxIdle),
 	}
 	for i := 0; i < maxIdle; i++ {
-		p.sessions[i] = &Conn{
+		p.conns[i] = &Conn{
 			dialFn: dialFn,
 		}
 	}
-	rand.Seed(time.Now().UnixNano())
 	return p
 }
 
 // GetStream fetch a stream from conn pool
 func (p *Pool) GetStream() (*smux.Stream, error) {
-	index := rand.Int() % p.MaxIdle
-start:
-	conn := p.sessions[index]
-	if conn.numStreams() > p.MaxMux {
-		index++
-		index = index % p.MaxIdle
-		goto start
+	startIndex := rand.Int() % p.MaxIdle
+	endIndex := startIndex + p.MaxIdle
+	for i := startIndex; i < endIndex; i++ {
+		conn := p.conns[i%p.MaxIdle]
+		if conn.NumStreams() < p.MaxMux {
+			return conn.OpenStream()
+		}
 	}
-	return conn.OpenStream()
+	return nil, errors.New("mux conns run out")
 }
